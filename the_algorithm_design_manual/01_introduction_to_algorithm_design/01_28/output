@@ -1,0 +1,36 @@
+Starting test...
+
+Testing 10/5
+* Function 'divide_v0' average: 984 nanoseconds
+* Function 'divide_v1' average: 931 nanoseconds
+* Function 'divide_v2' average: 952 nanoseconds
+
+Testing 10/3
+* Function 'divide_v0' average: 924 nanoseconds
+* Function 'divide_v1' average: 931 nanoseconds
+* Function 'divide_v2' average: 943 nanoseconds
+
+Testing 100/2
+* Function 'divide_v0' average: 922 nanoseconds
+* Function 'divide_v1' average: 1026 nanoseconds
+* Function 'divide_v2' average: 1060 nanoseconds
+
+Testing 100/1
+* Function 'divide_v0' average: 922 nanoseconds
+* Function 'divide_v1' average: 1137 nanoseconds
+* Function 'divide_v2' average: 1163 nanoseconds
+
+Testing 1231231231/6
+* Function 'divide_v0' average: 923 nanoseconds
+* Function 'divide_v1' average: 452736218 nanoseconds
+* Function 'divide_v2' average: 457135770 nanoseconds
+
+Testing 1231231231/1231231231
+* Function 'divide_v0' average: 937 nanoseconds
+* Function 'divide_v1' average: 939 nanoseconds
+* Function 'divide_v2' average: 957 nanoseconds
+
+Testing 6/123123123
+* Function 'divide_v0' average: 988 nanoseconds
+* Function 'divide_v1' average: 936 nanoseconds
+* Function 'divide_v2' average: 945 nanoseconds
