@@ -1,3 +1,7 @@
+// Compiles with: 
+// g++ division.cxx -o division -L/usr/lib/x86_64-linux-gnu -lboost_timer \
+// -lboost_system
+
 // std
 #include <iostream>
 #include <map>
@@ -14,6 +18,13 @@
 // A divide function's signature, takes two const int primitives and returns an 
 // int representing the quotient.
 typedef int(*DivideFunction)(const int, const int);
+
+inline
+int
+divide_v0(const int numerator, const int denominator)
+{
+  return numerator/denominator;
+}
 
 /**
    First thing that comes to mind is to just do iterative subtraction.
@@ -99,10 +110,10 @@ test(
   for(unsigned int i = 0; i < num_iterations; ++i)
   {
     boost::timer::cpu_timer cpu_timer;
-
     const int function_quotient = fn(numerator, denominator);
-    const int correct_quotient = numerator/denominator;
+    average_wall_time += cpu_timer.elapsed().wall;
 
+    const int correct_quotient = numerator/denominator;
     if(function_quotient != correct_quotient) {
       std::cerr
           << "ERROR: Your function isn't producing the correct results. " 
@@ -111,8 +122,6 @@ test(
           << std::endl;
       exit(1);
     }
-
-    average_wall_time += cpu_timer.elapsed().wall;
   }
 
   return average_wall_time/num_iterations;
@@ -138,6 +147,7 @@ int main()
   const unsigned int num_iterations = 100;
 
   FunctionMap functions;
+  functions["divide_v0"] = &divide_v0;
   functions["divide_v1"] = &divide_v1;
   functions["divide_v2"] = &divide_v2;
 
