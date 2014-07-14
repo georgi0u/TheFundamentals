@@ -6,11 +6,11 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <math.h> 
 
 // boost
 #include <boost/assign/list_of.hpp>
-#include <boost/algorithm/string/classification.hpp>
-#include <boost/algorithm/string/split.hpp>
+#include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
 #include <boost/program_options.hpp>
 
@@ -125,21 +125,45 @@ class Board {
   */
   Board(const string & board_string) 
       : _board(board_string)
-  {}
+  {
+    boost::algorithm::trim(_board);
+
+    vector<string> rows;
+    boost::split(rows, _board, boost::is_any_of("\n"));
+
+    _board.clear();
+
+    // Make sure each row is the same length.
+    BOOST_FOREACH(const string & row, rows) {
+      if(row.size() != rows.back().size()) {
+        throw runtime_error("You have inconsistent row lengths.");
+      }
+      _board += row;
+    }
+
+    // Make sure the number of columns matches the length of each row.
+    if(rows.size() != rows.back().size()) {
+      throw runtime_error("You have inconsistent row lengths.");
+    }
+
+    _length = sqrt(_board.size());
+
+    _letters.insert(_board.begin(), _board.end());
+  }
 
   /**
      \return int describing the length (and thus width) of the NxN 
      boggle board.
    */
-  size_t length() const { return _board.size(); }
+  size_t length() const { return _length; }
 
   /**
      \param x the x position of the letter you want to return
      \param y the y position of the letter you want to return
      \return char the letter found at position (x,y).
 
-     The board is considered to be in the first quadrant with its bottom left 
-     corner rooted at the origin.
+     The board's top left corner is at (0,0) and its bottom right corner is at
+     (N-1,N-1), where N is the length/width of the board.
   */
   const char & 
   letter(const Point & point) const
@@ -160,7 +184,14 @@ class Board {
       throw std::out_of_range(error.str());
     }
 
-    return _board[(the_board_length-1)-point.y][point.x];
+    return _board[board_index(point, the_board_length)];
+  }
+
+  static
+  unsigned int
+  board_index(const Point & point, const size_t board_length)
+  {
+    return point.x + (point.y * the_board_length);
   }
 
   /** 
@@ -169,17 +200,86 @@ class Board {
   string
   to_string() const 
   {
-    return _board;
+    ostringstream str;
+
+    for(unsigned int y = 0; y < length(); ++y) {
+      for(unsigned int x = 0; x < length(); ++x) {
+        str << letter(Point(x, y)) << " ";
+      }
+      str << endl;
+    }
+    str << endl;
+
+    return str.str();
   }
 
   bool
   exists(const string & word)
   {
+    // If this isn't a word, nope
+    if(word.empty())
+      return false;
 
+    // If the word contains letters that aren't on the board, nope.
+    vector<char> extra_letters;
+    set_difference(
+        word.begin(), word.end(), _letters.begin(), _letters.end()
+        extra_letters.begin());
+    if(!extra_letters.empty())
+      return false;
+
+    string word_to_find = word;
+    boost::scoped_ptr<GameState> state;
+
+    for(unsigned int i = 0; i < word_to_find.legnth(); ++i)
+    {
+      VisitedCacheMap_t::const_iterator itr = 
+          _visited_cache.find(word.substr(0,word.legnth()-i));
+
+      if(itr != _visited_cache.end()) {
+        state = make_shared<GameState>(itr->second);
+        break;
+      }
+    }
+
+    if(state == NULL)
+      state = make_shared<GameState>();
   }
 
   private:
-  const string _board;
+  string _board;
+  size_t _length;
+  std::set<char> _letters;
+
+  class GameState {
+    public:
+    GameState(const Point & last_char, const size_t board_length) : 
+        _board_length(board_length),
+        _last_char(point), 
+        _previously_visited(board_length*board_length, false) 
+    {
+      visit(last_char);
+    }
+
+    void visit(const Point & point) {
+      _last_char = point;
+      const size_t index = board_index(point);
+      if(index < 0 || index >= _previously_visited.size())
+        throw out_of_range("Can't visit a point off the board");
+      _previously_visited[index] = true;
+    }
+
+    private:
+    const size_t board_length;
+    Point _last_char;
+    vector<bool> _previously_visited;
+  };
+
+  typedef boost::unordered_map<string, GameState > GameStateCacheMap_t;
+
+  VisitedCacheMap_t _visited_cache;
+
+
 };
 
 
@@ -263,9 +363,6 @@ int main(int argc, char* argv[])
     }
 
     cout << board << endl;
-    cout << endl;
-    BOOST_FOREACH(const string & word, board.words())
-        cout << word << endl;
 
   }
 
