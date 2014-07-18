@@ -47,7 +47,8 @@ namespace boggle {
 /**
    Simple struct for housing an x,y coordinate pair.
 */
-struct Point {
+class Point {
+  public:
   Point(const int the_x, const int the_y) 
       : _x(the_x), _y(the_y) {}
 
@@ -68,6 +69,13 @@ struct Point {
   bool operator!=(const Point & rhs)
   { 
     return !(*this == rhs);
+  }
+
+  bool adjacent(const Point & other) const
+  {
+    const unsigned int delta_x = abs(x() - other.x());
+    const unsigned int delta_y = abs(y() - other.y());
+    return ((delta_x != 0 || delta_y != 0) && delta_x <= 1 && delta_y <= 1);
   }
 
   int x() const { return _x; }
@@ -197,84 +205,50 @@ class Board {
     if(word.empty())
       return false;
 
-    cout << "Checking if " << word << " exists." << endl;
-    // If the word contains letters that aren't on the board, nope.
-    /*
-    vector<char> extra_letters(max(word.size(), _letters.size()));
-    set_difference(
-        word.begin(), word.end(), _letters.begin(), _letters.end(),
-        extra_letters.begin());
-    if(!extra_letters.empty())
-      return false;
-    */
-
     GameStateCacheMap_t::iterator cache_itr(
         find_sub_word_gamestate(word));
 
     unsigned int sub_word_end_index = cache_itr->first.size();
-    list<GameState> & states = cache_itr->second;
-
-    if(states.empty())
-      return false;
-
     if(sub_word_end_index == word.size())
       return true;
 
-    list<GameState> new_states;
     // For each additional subword that we don't have in the `_visited_cache`, 
     // see if it exists on the board, and if it does, add it to the cache.
-    for(; sub_word_end_index < word.size(); ++sub_word_end_index) 
+    for(sub_word_end_index+=1; sub_word_end_index <= word.size(); ++sub_word_end_index) 
     {
+      const string cached_subword = word.substr(0, sub_word_end_index-1);
       const string uncached_subword = word.substr(0, sub_word_end_index);
-      const char subword_last_letter = uncached_subword.at(uncached_subword.size()-1);
-
-      cout << "Looking for uncached_subword in the board " << uncached_subword << endl;
 
       for(unsigned int j = 0; j < _board.size(); ++j){
 
         // If this board letter isn't the one we need, then try again.
-        if(_board[j] != subword_last_letter) 
+        if(_board[j] != uncached_subword[uncached_subword.size()-1]) 
           continue;
 
-        BOOST_FOREACH(const GameState & state, states) {
+        BOOST_FOREACH(const GameState & state, _visited_cache[cached_subword]) {
+
           // If this board letter is already visited, then try again. 
-          if(state.visited(j)) {
+          if(state.visited(j))
             continue;
-          }
 
           const Point current_letter_point = Board::point(j, length());
 
           // If the found letter isn't adjacent to the last one, then try again.
-          const unsigned int delta_x = 
-              abs(state.last_letter().x() - current_letter_point.x());
-          const unsigned int delta_y = 
-              abs(state.last_letter().y() - current_letter_point.y());
-          if(!(delta_x == 1 && delta_y == 1))
+          if(!state.last_letter().adjacent(current_letter_point)) {
+            cout << state.last_letter() << " " << current_letter_point << endl;
             continue;
+          }
 
-          //cout << "found in board" << endl;
-
+          // We found a valid position
           GameState new_state(state);
           new_state.visit(current_letter_point);
           _visited_cache[uncached_subword].push_back(new_state);
-
-          //          cout << to_string() << endl;
-          /*
-          for(unsigned int y = 0; y < length(); ++y) {
-            for(unsigned int x = 0; x < length(); ++x) {
-                            cout << 
-                  _visited_cache[uncached_subword].back().visited()[
-                      Board::board_index(Point(x, y), length())] << " ";
-            }
-            cout << endl;
-          }
-          cout << endl;
-          */
         }
+
       }
-      states = _visited_cache[uncached_subword];
-      if(states.empty())
-         break;
+
+      if(_visited_cache[uncached_subword].empty())
+        return false;
     }
 
     return _visited_cache[word].size() > 0;
@@ -286,7 +260,7 @@ class Board {
   std::set<char> _letters;
 
   static
-  unsigned int
+  int
   board_index(const Point & point, const size_t board_length)
   {
     return point.x() + (point.y() * board_length);
@@ -312,7 +286,7 @@ class Board {
     void visit(const Point & point) 
     {
       _last_char = point;
-      const size_t index = Board::board_index(point, _board_length);
+      const int index = Board::board_index(point, _board_length);
       if(index < 0 || index >= _previously_visited.size())
         throw out_of_range("Can't visit a point off the board");
       _previously_visited[index] = true;
@@ -340,9 +314,10 @@ class Board {
     // Look in the cache for sub words we've encountered already
     for(unsigned int i = 0; i < word.size(); ++i)
     {
-      GameStateCacheMap_t::const_iterator itr =
+      GameStateCacheMap_t::iterator itr =
           _visited_cache.find(word.substr(0, word.size()-i));
-      if(itr != _visited_cache.end()) return itr;
+      if(itr != _visited_cache.end()) 
+        return itr;
     }
 
     // If we haven't encountered any portion of this word, prime the cache.
@@ -351,14 +326,12 @@ class Board {
     {
       if(_board[i] == word[0]) {
         states.push_back(GameState(length()));
-        states.back().visit(Board::point(i));
-        break;
+        states.back().visit(Board::point(i, length()));
       }
     }
 
-    return _visited_cache.insert(make_pair(word[0], states));
+    return _visited_cache.insert(make_pair(word.substr(0,1), states)).first;
   }
-
 
   GameStateCacheMap_t _visited_cache;
 };
@@ -446,10 +419,19 @@ int main(int argc, char* argv[])
     // Print out the words that are playable on the board and in the dictionary
     BOOST_FOREACH(const string & word, dictionary)
     {
-      //      cout << word << "\n------------------" << endl;
-      if(board.exists(word))
+      if(board.exists(word) && word.size() >=3)
         cout << word << endl;
-      //      cout << "\n" << endl;
     }
   }
 }
+
+
+    // If the word contains letters that aren't on the board, nope.
+    /*
+    vector<char> extra_letters(max(word.size(), _letters.size()));
+    set_difference(
+        word.begin(), word.end(), _letters.begin(), _letters.end(),
+        extra_letters.begin());
+    if(!extra_letters.empty())
+      return false;
+    */
