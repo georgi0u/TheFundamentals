@@ -38,8 +38,8 @@ boggle::Board::Board(const string & board_string)
     throw runtime_error("You have inconsistent row lengths.");
   }
 
-  // _board is guaranteed to be a factor of 2
-  _length = (size_t)(sqrt(_board.size())); 
+  _length = (size_t)(sqrt(_board.size())); // _board is a factor of 2
+
   _letters.insert(_board.begin(), _board.end());
 }
 
@@ -81,7 +81,7 @@ boggle::Board::to_string() const
 }
 
 bool
-boggle::Board::exists(const string & word)
+boggle::Board::exists(const string & word) const
 {
   // If this isn't a word, nope
   if(word.empty())
@@ -93,51 +93,56 @@ boggle::Board::exists(const string & word)
       return false;
   }
 
-  GameStateCacheMap_t::iterator cache_itr(
-      find_sub_word_gamestate(word));
+  // Find a substring in the cache
+  GameStateCacheMap_t::iterator cache_itr(find_sub_word_gamestate(word));
 
-  unsigned int sub_word_end_index = cache_itr->first.size();
-  // If this word has no valid GameStates, it can't be formed, so... nope.
+  // If the found substring has no valid GameStates, then neither can any string 
+  // containing it, so... nope.
   if(cache_itr->second.empty())
     return false;
-  // If the subword we've found is the same size as the word, it is the word,
-  // and we know it has at least one valid state because we passed the above 
-  // check, so YUUUUUUUUP.
-  if(sub_word_end_index == word.size())
+
+  // If the subword we've found is the same size as the word we're looking for,
+  // then it is the word we're looking for, and we know it has at least one 
+  // valid state on the board because we passed the conditional check above 
+  // so... YUUUUUUUUP.
+  unsigned int substr_end_index = cache_itr->first.size();
+  if(substr_end_index == word.size())
     return true;
 
-
-  // For each additional subword that we don't have in the `_visited_cache`, 
+  // For each additional substring that we don't have in the `_visited_cache`, 
   // see if it exists on the board, and if it does, add it to the cache.
-  for(sub_word_end_index+=1; 
-      sub_word_end_index <= word.size(); 
-      ++sub_word_end_index)
+  for(substr_end_index+=1; 
+      substr_end_index <= word.size(); 
+      ++substr_end_index)
   {
-    const string cached_subword = word.substr(0, sub_word_end_index-1);
-    const string uncached_subword = word.substr(0, sub_word_end_index);
+    const string cached_subword = word.substr(0, substr_end_index-1);
+    const string uncached_subword = word.substr(0, substr_end_index);
 
-    for(unsigned int j = 0; j < _board.size(); ++j){
-
+    for(unsigned int board_index = 0;
+        board_index < _board.size();
+        ++board_index)
+    {
       // If this board letter isn't the one we need, then try again.
-      if(_board[j] != uncached_subword[uncached_subword.size()-1]) 
+      if(_board[board_index] != uncached_subword[uncached_subword.size()-1])
         continue;
 
       BOOST_FOREACH(const GameState & state, _visited_cache[cached_subword])
       {
         // If this board letter is already visited, then try again. 
-        if(state.visited(j))
+        if(state.visited(board_index))
           continue;
 
-        const Point current_letter_point = Board::point(j, length());
+        const Point board_point = Board::point(board_index, length());
 
         // If the found letter isn't adjacent to the last one, then try again.
-        if(!state.last_letter().adjacent(current_letter_point))
+        if(!state.last_letter().adjacent(board_point))
           continue;
 
-        // We found a valid position
-        GameState new_state(state);
-        new_state.visit(current_letter_point);
-        _visited_cache[uncached_subword].push_back(new_state);
+        // We found a valid position. Create a new state, same as the one we're
+        // looking at, with the current board position visited. Add it to this 
+        // substring's list in the cache, and move on.
+        _visited_cache[uncached_subword].push_back(
+            GameState(state, board_point));
       }
     }
 
@@ -146,10 +151,14 @@ boggle::Board::exists(const string & word)
   }
 
   return _visited_cache[word].size() > 0;
+
+  // If you're gotten through this method without reading all the "nope"s and
+  // "yup"s in the voice of Lana from the TV show Archer, go back and do it 
+  // again.
 }
 
 boggle::Board::GameStateCacheMap_t::iterator
-boggle::Board::find_sub_word_gamestate(const string & word)
+boggle::Board::find_sub_word_gamestate(const string & word) const
 {
   // Look in the cache for sub words we've encountered already
   for(unsigned int i = 0; i < word.size(); ++i)
@@ -179,12 +188,24 @@ boggle::Board::GameState::GameState(const size_t board_length) :
     _previously_visited(board_length * board_length, false) 
 {}
 
+boggle::Board::GameState:: GameState(
+    const GameState & state, const Point & point) 
+    : _board_length(state._board_length),
+      _last_char(state._last_char),
+      _previously_visited(state._previously_visited) 
+{
+  visit(point);
+}
+
 void 
 boggle::Board::GameState::visit(const Point & point) 
 {
   _last_char = point;
+
   const int index = Board::board_index(point, _board_length);
+
   if(index < 0 || index >= (int)_previously_visited.size())
     throw out_of_range("Can't visit a point off the board");
+
   _previously_visited[index] = true;
 }

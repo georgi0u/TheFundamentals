@@ -18,6 +18,7 @@ namespace boggle {
    involved with playing the game.
 */
 class Board {
+
   public:
 
   /**
@@ -52,23 +53,50 @@ class Board {
      \param word a string representing the word you want to know about.
      \return true if `word` exists (i.e., is playable) in the boggle board,
      false otherwise.
+
+     Note, this method populates a cache, which at the moment is unbound in how 
+     many resources it can consume.
+
+     Beware.
   */
-  bool exists(const std::string & word);
+  bool exists(const std::string & word) const;
+
 
   private:
+
+  /**
+     \param point the point you wish to convert to an index.
+     \param board_length the length or width of one of your board's sides.
+     \returns int the index location of `point` on the internal representation 
+     of the board.
+
+     Converts a Point into a board_index, where we assume the board is a single
+     dimension vector of length `board_length * board_length`
+  */
   static int board_index(const Point & point, const size_t board_length)
   {
     return point.x() + (point.y() * board_length);
   }
 
+  /**
+     \param board_index the internal board representation index you wish to
+     convert to an point.
+     \param board_length the length or width of one of your board's sides.
+     \returns int the `point` equivalent of the internal board representation's
+     index.
+  */
   static Point point(const unsigned int board_index, const size_t board_length)
   {
     return Point((board_index%(board_length)), (board_index/(board_length)));
   }
 
+  /**
+     A class to encapsulate the state of the game for any given word.
+  */
   class GameState {
     public:
     GameState(const size_t board_length);
+    GameState(const GameState & state, const Point & point);
 
     void visit(const Point & point);
 
@@ -89,14 +117,30 @@ class Board {
   typedef boost::unordered_map<
     std::string, std::list<GameState> > GameStateCacheMap_t;
 
-  GameStateCacheMap_t _visited_cache;
+  /**
+     \param word the word you wish to look for in the cache.
+     \return an iterator pointing to a position in the cache representing the 
+     largest substring of the `word` parameter.
+
+     If no substrings are found, the cache is primed with the first letter of 
+     the `word` parameter, and an iterator to primed key-value pair is returned.
+  */
+  GameStateCacheMap_t::iterator 
+  find_sub_word_gamestate(const std::string & word) const;
+
+  /**
+     A cache of all the words we've seen and all the end GameStates for those 
+     words; an association of words with a list of valid GameStates for said
+     word. 
+
+     If the associated list is empty, then that word can not be created on 
+     `this` board.
+  */
+  mutable GameStateCacheMap_t _visited_cache;
 
   std::string _board;
   size_t _length;
   std::set<char> _letters;
-
-  GameStateCacheMap_t::iterator 
-  find_sub_word_gamestate(const std::string & word);
 };
 
 
@@ -111,4 +155,4 @@ operator<< (std::ostream& stream, const boggle::Board & board )
   return stream;
 }
 
-} // </boggle>
+}
