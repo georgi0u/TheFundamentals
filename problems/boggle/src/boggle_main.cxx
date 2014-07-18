@@ -1,19 +1,19 @@
 // STL
-#include <stdexcept>
 #include <fstream>
 #include <iostream>
-#include <sstream>
+#include <math.h> 
 #include <set>
+#include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
-#include <math.h> 
 
 // boost
-#include <boost/assign/list_of.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/unordered_map.hpp>
+#include <boost/assign/list_of.hpp>
 #include <boost/foreach.hpp>
 #include <boost/program_options.hpp>
+#include <boost/unordered_map.hpp>
 
 using namespace std;
 
