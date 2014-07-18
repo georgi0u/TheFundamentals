@@ -134,7 +134,6 @@ class Board {
 
     // _board is guaranteed to be a factor of 2
     _length = (size_t)(sqrt(_board.size())); 
-
     _letters.insert(_board.begin(), _board.end());
   }
 
@@ -205,12 +204,20 @@ class Board {
     if(word.empty())
       return false;
 
+    // If the word contains letters that aren't on the board, nope.
+    BOOST_FOREACH(const char letter, word) {
+      if(!_letters.count(letter))
+        return false;
+    }
+
     GameStateCacheMap_t::iterator cache_itr(
         find_sub_word_gamestate(word));
 
     unsigned int sub_word_end_index = cache_itr->first.size();
     if(sub_word_end_index == word.size())
       return true;
+    if(cache_itr->second.empty())
+      return false;
 
     // For each additional subword that we don't have in the `_visited_cache`, 
     // see if it exists on the board, and if it does, add it to the cache.
@@ -234,17 +241,14 @@ class Board {
           const Point current_letter_point = Board::point(j, length());
 
           // If the found letter isn't adjacent to the last one, then try again.
-          if(!state.last_letter().adjacent(current_letter_point)) {
-            cout << state.last_letter() << " " << current_letter_point << endl;
+          if(!state.last_letter().adjacent(current_letter_point))
             continue;
-          }
 
           // We found a valid position
           GameState new_state(state);
           new_state.visit(current_letter_point);
           _visited_cache[uncached_subword].push_back(new_state);
         }
-
       }
 
       if(_visited_cache[uncached_subword].empty())
@@ -257,7 +261,7 @@ class Board {
   private:
   string _board;
   size_t _length;
-  std::set<char> _letters;
+  set<char> _letters;
 
   static
   int
@@ -287,7 +291,7 @@ class Board {
     {
       _last_char = point;
       const int index = Board::board_index(point, _board_length);
-      if(index < 0 || index >= _previously_visited.size())
+      if(index < 0 || index >= (int)_previously_visited.size())
         throw out_of_range("Can't visit a point off the board");
       _previously_visited[index] = true;
     }
@@ -409,29 +413,20 @@ int main(int argc, char* argv[])
     Board board(slurp(option_map["board_file"].as<string>()));
 
     // Construct the dictionary
-    vector<string> dictionary;
-    {
-      const string dictionary_string = 
-          slurp(option_map["dictionary_file"].as<string>());
-      boost::split(dictionary, dictionary_string, boost::is_any_of("\n"));
+    const string filename = option_map["dictionary_file"].as<string>();
+    ifstream in(filename.c_str());
+
+    if(!in.is_open()) {
+      cerr << "Couldn't open dictionary file: " << filename << endl;
+      return -1;
     }
 
-    // Print out the words that are playable on the board and in the dictionary
-    BOOST_FOREACH(const string & word, dictionary)
-    {
-      if(board.exists(word) && word.size() >=3)
+    while(in.good()) {
+      string word;
+      getline(in, word);
+      if(board.exists(word) && word.size() >= 3)
         cout << word << endl;
     }
+    in.close();
   }
 }
-
-
-    // If the word contains letters that aren't on the board, nope.
-    /*
-    vector<char> extra_letters(max(word.size(), _letters.size()));
-    set_difference(
-        word.begin(), word.end(), _letters.begin(), _letters.end(),
-        extra_letters.begin());
-    if(!extra_letters.empty())
-      return false;
-    */
