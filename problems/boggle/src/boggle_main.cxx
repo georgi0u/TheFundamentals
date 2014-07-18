@@ -55,7 +55,8 @@ class Point {
   Point(const Point & point) 
       : _x(point.x()), _y(point.y()) {}
 
-  Point & operator=(const Point &rhs) {
+  Point & operator=(const Point &rhs)
+  {
     _x = rhs._x;
     _y = rhs._y;
     return *this;
@@ -120,7 +121,8 @@ class Board {
     _board.clear();
 
     // Make sure each row is the same length.
-    BOOST_FOREACH(const string & row, rows) {
+    BOOST_FOREACH(const string & row, rows)
+    {
       if(row.size() != rows.back().size()) {
         throw runtime_error("You have inconsistent row lengths.");
       }
@@ -154,23 +156,22 @@ class Board {
   const char & 
   letter(const Point & point) const
   {
-    const int the_board_length = length();
-    if(point.x() > the_board_length-1) {
+    if(point.x() > (int)length()-1) {
       ostringstream error;
       error << "`x` position is out of bounds. board is "
-            << the_board_length << " wide and you requested the data at index `"
+            << length() << " wide and you requested the data at index `"
             << point.x() << "`.";
       throw std::out_of_range(error.str());
     }
-    if(point.y() > the_board_length-1) {
+    if(point.y() > (int)length()-1) {
       ostringstream error;
       error << "`y` position is out of bounds. board is "
-            << the_board_length << " long and you requested the data at index `"
+            << length() << " long and you requested the data at index `"
             << point.y() << "`.";
       throw std::out_of_range(error.str());
     }
 
-    return _board[Board::board_index(point, the_board_length)];
+    return _board[Board::board_index(point, length())];
   }
 
   /** 
@@ -214,14 +215,21 @@ class Board {
         find_sub_word_gamestate(word));
 
     unsigned int sub_word_end_index = cache_itr->first.size();
-    if(sub_word_end_index == word.size())
-      return true;
+    // If this word has no valid GameStates, it can't be formed, so... nope.
     if(cache_itr->second.empty())
       return false;
+    // If the subword we've found is the same size as the word, it is the word,
+    // and we know it has at least one valid state because we passed the above 
+    // check, so YUUUUUUUUP.
+    if(sub_word_end_index == word.size())
+      return true;
+
 
     // For each additional subword that we don't have in the `_visited_cache`, 
     // see if it exists on the board, and if it does, add it to the cache.
-    for(sub_word_end_index+=1; sub_word_end_index <= word.size(); ++sub_word_end_index) 
+    for(sub_word_end_index+=1; 
+        sub_word_end_index <= word.size(); 
+        ++sub_word_end_index)
     {
       const string cached_subword = word.substr(0, sub_word_end_index-1);
       const string uncached_subword = word.substr(0, sub_word_end_index);
@@ -232,8 +240,8 @@ class Board {
         if(_board[j] != uncached_subword[uncached_subword.size()-1]) 
           continue;
 
-        BOOST_FOREACH(const GameState & state, _visited_cache[cached_subword]) {
-
+        BOOST_FOREACH(const GameState & state, _visited_cache[cached_subword])
+        {
           // If this board letter is already visited, then try again. 
           if(state.visited(j))
             continue;
