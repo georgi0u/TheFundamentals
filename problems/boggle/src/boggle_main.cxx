@@ -427,6 +427,7 @@ int main(int argc, char* argv[])
       if(board.exists(word) && word.size() >= 3)
         cout << word << endl;
     }
+    cout << endl;
     in.close();
   }
 }
