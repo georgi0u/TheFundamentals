@@ -1,5 +1,6 @@
 // STL
 #include <fstream>
+#include <stdlib.h>
 
 namespace boggle {
 
