@@ -9,8 +9,8 @@ import os
 import random
 import sys
 
-class Graph(object):
 
+class Graph(object):
     """
     A graph class implemented using adjacency lists.
     """
@@ -102,59 +102,103 @@ class Maze(object):
         Returns true if `coordinate` -- either and x or y -- is in bounds, false
         otherwise.
         """
-        return coordinate >= 0 and coordinate < self._width
+        is_out_of_bound = lambda x: x < 0 or x >= self._width
+        try:
+            return (
+                not is_out_of_bound(coordinate[0]) and
+                not is_out_of_bound(coordinate[1])
+            )
+        except TypeError:
+            pass
+        return not is_out_of_bound(coordinate)
 
-    def _surrounding_cells(self, x, y):
+    def _surrounding_cells(self, coordinate_pair):
         """
         Returns the Cartesian, in bound, neighbors of the maze cell described by
         parameters `x` and `y`.
         """
-        def get_deltas(coordinate):
-            """
-            Get all valid -- i.e., inbound -- changes to `coordinate`.
-            """
-            deltas = []
-            for delta in [-1, 1]:
-                new_coordinate = coordinate + delta
-                if self._is_in_bound(new_coordinate):
-                    deltas.append(new_coordinate)
-            return deltas
+        x, y = coordinate_pair
+        deltas = [(0, 1), (0, -1), (1, 0), (-1, 0), ]
+        coordinates = [(x + delta[0], y + delta[1]) for delta in deltas]
+        if x == 0 or x == self._width - 1 or y == 0 or y == self._width - 1:
+            coordinates = [x for x in coordinates if self._is_in_bound(x)]
+        return coordinates
 
-        ret = []
-        ret.extend([(dx, y) for dx in get_deltas(x)])
-        ret.extend([(x, dy) for dy in get_deltas(y)])
-        return ret
+    def random_cell(self):
+        """
+        Returns a random cell from the maze.
+        """
+        rand_coord = lambda: random.randint(0, self._width - 1)
+        return(rand_coord(), rand_coord())
 
     def _prim_init(self):
         """
         Initializes the maze using Prim's algorithm. Expects the maze and
         underlying graph to be completely disconnected when called.
         """
-        start_node = (
-            random.randint(0, self._width - 1),
-            random.randint(0, self._width - 1)
-        )
-        self._cells_in_maze.append(start_node)
-        frontier = self._surrounding_cells(*start_node)
+        frontier = dict()
+        frontier_list = list()
 
-        while frontier:
-            frontier_choice = random.choice(frontier)
-            frontier.remove(frontier_choice)
+        def expand_frontier(node):
+            """
+            Adds the cells surrounding `node` and not already in the maze to the
+            frontier.
+            """
+            for surrounding_cell in self._surrounding_cells(node):
+                if(not self._graph.neighbors(surrounding_cell)
+                   and surrounding_cell not in frontier):
+                    frontier_list.append(surrounding_cell)
+                    frontier[surrounding_cell] = None
 
+        def choose_frontier_cell():
+            """
+            Returns and removes a random node from the frontier.
+            """
+            end_index = len(frontier_list) - 1
+            random_index = int(random.random() * (len(frontier_list) - 1))
+            frontier_choice = frontier_list[random_index]
+
+            del frontier[frontier_choice]
+
+            (
+                frontier_list[random_index],
+                frontier_list[end_index]
+            ) = (
+                frontier_list[end_index],
+                frontier_list[random_index]
+            )
+
+            del frontier_list[end_index]
+
+            return frontier_choice
+
+        def add_to_maze(frontier_choice):
+            """
+            Adds the `frontier_choice` node to the maze by connecting it to one
+            of a neighbors that's already in the maze.
+            """
             surrounding_cells = [
-                x for x in self._surrounding_cells(*frontier_choice)
-                if x in self._cells_in_maze
+                x for x in self._surrounding_cells(frontier_choice)
+                if self._graph.neighbors(x)
             ]
-
             neighbor = random.choice(surrounding_cells)
-
             self._graph.add_edge(frontier_choice, neighbor)
-            self._cells_in_maze.append(frontier_choice)
 
-            frontier.extend([
-                x for x in self._surrounding_cells(*frontier_choice)
-                if x not in self._cells_in_maze and x not in frontier
-            ])
+        # Start by adding a random node and a random one of its neighbors to the
+        # maze. Also, add all surround nodes to the frontier, i.e. a list of
+        # unexplored nodes.
+        start_node = self.random_cell()
+        expand_frontier(start_node)
+        frontier_choice = choose_frontier_cell()
+        self._graph.add_edge(start_node, frontier_choice)
+        expand_frontier(frontier_choice)
+
+        # Continue exploring the frontier and adding to the maze until we run
+        # out of unexplored cells
+        while frontier:
+            frontier_choice = choose_frontier_cell()
+            add_to_maze(frontier_choice)
+            expand_frontier(frontier_choice)
 
     def __unicode__(self):
         """
@@ -185,8 +229,7 @@ def main():
     """
     Generates and prints a maze.
     """
-    maze = Maze(50)
-    print maze
+    print Maze(int(sys.argv[1]))
 
     return os.EX_OK
 
