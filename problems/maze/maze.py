@@ -9,7 +9,6 @@ import os
 import random
 import sys
 
-
 class Graph(object):
     """
     A graph class implemented using adjacency lists.
@@ -17,6 +16,12 @@ class Graph(object):
 
     def __init__(self):
         self._adjacency_list = dict()
+
+    def get_nodes(self):
+        """
+        Returns a list of nodes in the graph.
+        """
+        return self._adjacency_list.keys()
 
     def adjacent(self, node_1, node_2):
         """
@@ -62,6 +67,33 @@ class Graph(object):
         add_directed_edge(node_1, node_2)
         add_directed_edge(node_2, node_1)
 
+    def are_connected(self, node_1, node_2, visited=None):
+        """
+        Poor-man's depth first search.
+        """
+
+        if(node_1 not in self._adjacency_list
+           or node_2 not in self._adjacency_list):
+            raise Exception('Node doesn\'t exist')
+
+        if not visited:
+            visited = {node_1:None}
+
+        node_1_neighbors = self._adjacency_list[node_1]
+
+        if node_2 in node_1_neighbors and node_2 not in visited:
+            return True
+
+        for node in node_1_neighbors:
+            if node in visited:
+                continue
+
+            visited[node] = None
+            if self.are_connected(node, node_2, visited):
+                return True
+
+        return False
+
     def remove_edge(self, node_1, node_2):
         """
         Removes all edges between `node_1` and `node_2`.
@@ -80,7 +112,7 @@ class Maze(object):
     A class for generating and printing random mazes.
     """
 
-    def __init__(self, width):
+    def __init__(self, width, init=None):
         """
         Initializes a completely disconnected graph with `width`^2 nodes.
         Then creates a maze by connected said nodes via Prim's algorithm.
@@ -95,7 +127,7 @@ class Maze(object):
                 node = (row, col)
                 self._graph.add_node(node)
 
-        self._prim_init()
+        getattr(self, '_'+init+'_init')()
 
     def _is_in_bound(self, coordinate):
         """
@@ -154,7 +186,6 @@ class Maze(object):
             """
             Returns and removes a random node from the frontier.
             """
-            end_index = len(frontier_list) - 1
             random_index = int(random.random() * (len(frontier_list) - 1))
             frontier_choice = frontier_list[random_index]
 
@@ -162,13 +193,13 @@ class Maze(object):
 
             (
                 frontier_list[random_index],
-                frontier_list[end_index]
+                frontier_list[-1]
             ) = (
-                frontier_list[end_index],
+                frontier_list[-1],
                 frontier_list[random_index]
             )
 
-            del frontier_list[end_index]
+            del frontier_list[-1]
 
             return frontier_choice
 
@@ -194,11 +225,60 @@ class Maze(object):
         expand_frontier(frontier_choice)
 
         # Continue exploring the frontier and adding to the maze until we run
-        # out of unexplored cells
+        # out of unexplored cells.
         while frontier:
             frontier_choice = choose_frontier_cell()
             add_to_maze(frontier_choice)
             expand_frontier(frontier_choice)
+
+
+    def _kruskal_init(self):
+        # Construct a dictionary of sets describing what nodes each individual
+        # is connected to, either directly (i.e., edge exists between that node
+        # and another) or indirectly (i.e., you can traverse the graph from one
+        # node to another).
+        connected_sets = {}
+        nodes = self._graph.get_nodes()
+        for node in nodes:
+            connected_sets[node] = [node]
+
+        # For every node in the maze, pick a random surrounding node that the
+        # original can not get to, already, and connect the two. If all
+        # surrounding nodes are connected to the randomly chosen one, remove the
+        # randomly chosen node from the list and continue until the list is
+        # empty.
+        while nodes:
+            random_node_index = random.randint(0, len(nodes)-1)
+            node = nodes[random_node_index]
+
+            surrounding = [
+                x for x in self._surrounding_cells(node)
+                if x not in connected_sets[node]
+            ]
+
+            if not surrounding:
+                # Faster to delete from the end, and we don't care about order.
+                (
+                    nodes[random_node_index],
+                    nodes[-1]
+                ) = (
+                    nodes[-1],
+                    nodes[random_node_index],
+                )
+                del nodes[-1]
+                continue
+
+            rand_surrounding = random.choice(surrounding)
+            self._graph.add_edge(rand_surrounding, node)
+
+            # Note: Storing lists and then creating sets from them is
+            # observably faster than storing sets and union-ing them.
+            joined_set = set(connected_sets[rand_surrounding])
+            joined_set.update(set(connected_sets[node]))
+            joined_set = list(joined_set)
+
+            for node in joined_set:
+                connected_sets[node] = joined_set
 
     def __unicode__(self):
         """
@@ -229,7 +309,7 @@ def main():
     """
     Generates and prints a maze.
     """
-    print Maze(int(sys.argv[1]))
+    print Maze(int(sys.argv[1]), sys.argv[2])
 
     return os.EX_OK
 
