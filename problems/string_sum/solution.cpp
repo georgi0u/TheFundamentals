@@ -1,8 +1,6 @@
-#include <cassert>
-#include <iomanip>
-#include <iostream>
-#include <limits.h>
-#include <math.h>
+#include <cassert> // assert
+#include <math.h>  // pow
+#include <string>
 #include <vector>
 
 using namespace std;

@@ -235,7 +235,7 @@ class Maze(object):
     def _kruskal_init(self):
         # Construct a dictionary of sets describing what nodes each individual
         # is connected to, either directly (i.e., edge exists between that node
-        # and another) or indirectly (i.e., you can traverse the graph from one
+        # and nother) or indirectly (i.e., you can traverse the graph from one
         # node to another).
         connected_sets = {}
         nodes = self._graph.get_nodes()
