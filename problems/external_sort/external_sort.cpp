@@ -4,6 +4,7 @@
 #include <string>
 #include <stdexcept>
 #include <boost/lexical_cast.hpp>
+#include <boost/algorithm/string.hpp>
 #include <queue>
 
 using namespace std;
@@ -28,6 +29,12 @@ using namespace boost;
 */
 
 
+void getline(ifstream && input, string & output)
+{
+  getline(input,output);
+  boost::trim(output);
+} 
+
 /**
    Assumes files are named 1, 2, 3... `flushed_file_count`, merges said files,
    and then writes the final file back to `filename`.
@@ -44,7 +51,6 @@ void merge_files(const int flushed_file_count, const string & filename)
   // While the queue still has items to merge in it...
   while(files_to_merge.size() > 1) 
   {
-
     // Get the two files to merge off the queue.
     const string file_1_filename = files_to_merge.front();
     ifstream file_1(file_1_filename.c_str());
@@ -63,7 +69,8 @@ void merge_files(const int flushed_file_count, const string & filename)
     string line_1, line_2;
     getline(file_1, line_1);
     getline(file_2, line_2);
-    while(!file_1.eof() && !file_2.eof())
+
+    while(!line_1.empty() && !line_2.empty())
     {
       const int
           line_1_int = lexical_cast<int>(line_1), 
@@ -79,24 +86,17 @@ void merge_files(const int flushed_file_count, const string & filename)
       }
     }
 
-    // Merge the data from the two sources as long as there is data to merge.
-    while(true) {
-      // If there's only data in one file, print the remainder of it.
-      if(!file_1.eof())
-      {
-        merge << line_1 << endl;
-        getline(file_1, line_1);
-        continue;
-      }
+    // If there's only data in one file, print the remainder of it.
+    while(!line_1.empty())
+    {
+      merge << line_1 << endl;
+      getline(file_1, line_1);
+    }
 
-      if(!file_2.eof())
-      {
-        merge << line_2 << endl;
-        getline(file_2, line_2);
-        continue;
-      }
-
-      break;
+    while(!line_2.empty())
+    {
+      merge << line_2 << endl;
+      getline(file_2, line_2);
     }
 
     // Cleanup
@@ -157,12 +157,14 @@ void external_sort(const string & filename, const int items_per_chunk)
     string line;
     getline(file, line);
 
-    *data_input_point = boost::lexical_cast<int>(line.c_str());
+    if(line.empty())
+      continue;
 
-    ++data_input_point;
+    *data_input_point++ = boost::lexical_cast<int>(line.c_str());
     ++count;
 
     if(count >= items_per_chunk || file.eof()){
+      data.resize(count);
       sort(data.begin(), data.end());
       flush_data(data, ++flushed_file_count);
       data_input_point = data.begin();
